@@ -1,0 +1,46 @@
+server {
+    listen 80;
+    server_name <your_grafana_domain>;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name <your_grafana_domain>;
+
+    ssl_certificate /etc/letsencrypt/live/<your_grafana_domain>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<your_grafana_domain>/privkey.pem;
+    
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+    ssl_prefer_server_ciphers on;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options SAMEORIGIN;
+    add_header Referrer-Policy "strict-origin-when-cross-origin";
+
+    client_max_body_size 10M;
+
+    client_body_timeout 10s;
+    client_header_timeout 10s;
+    send_timeout 10s;
+
+    access_log /var/log/nginx/logs_access_grafana.log;
+    error_log /var/log/nginx/logs_error_grafana.log;
+
+    auth_basic "Restricted Access";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location ~* \.(env|log|sql|sh|bak|conf|ini|htaccess)$ {
+        deny all;
+    }
+}
